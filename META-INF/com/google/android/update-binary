@@ -1,0 +1,57 @@
+#!/sbin/sh
+# Author: cjybyjk (cjybyjk@gmail.com)
+
+OUTFD=$2
+ZIP=$3
+
+RAW_ID=`cat /sys/devices/system/soc/soc0/raw_id`
+VENDOR="/dev/block/bootdevice/by-name/vendor"
+BLOCKDEV="/dev/block/mmcblk0"
+SGDISKBIN="/tmp/treblizer/sgdisk"
+
+ui_print() {
+    echo -n -e "ui_print $1\n" >> /proc/self/fd/$OUTFD
+    echo -n -e "ui_print\n" >> /proc/self/fd/$OUTFD
+}
+
+ui_print " "
+ui_print "**************************"
+ui_print "    cancro treblizer"
+ui_print "    Author: cjybyjk"
+ui_print "**************************"
+ui_print " "
+
+if [ $RAW_ID != 1978 ] && [ $RAW_ID != 1977 ] && [ $RAW_ID != 1974 ] && [ $RAW_ID != 1972 ]; then
+    ui_print "Unsupported device!"
+    exit 1
+fi
+
+ui_print "Extracting files"
+mkdir /tmp/treblizer
+cd /tmp/treblizer
+unzip -o "$ZIP"
+chmod 0755 $SGDISKBIN
+
+safeRunCommand() {
+   cmnd="$@"
+   $cmnd
+   ERROR_CODE=$?
+   if [ ${ERROR_CODE} != 0 ]; then
+      ui_print "Error when executing command: '${command}'\n"
+      exit ${ERROR_CODE}
+   fi
+}
+
+if [ ! -e "$VENDOR" ]; then
+    ui_print "Vendor partition does not exist"
+    safeRunCommand "$SGDISKBIN $BLOCKDEV --delete 24"
+    safeRunCommand "$SGDISKBIN $BLOCKDEV --new=24:3407872:3825663"
+    safeRunCommand "$SGDISKBIN $BLOCKDEV --change-name=24:cache"
+    safeRunCommand "$SGDISKBIN $BLOCKDEV --new=26:3825664:4194303"
+    safeRunCommand "$SGDISKBIN $BLOCKDEV --change-name=26:vendor"
+    ui_print "Done."
+else
+    ui_print "Found vendor partiton. Good!"
+fi
+
+exit 0
